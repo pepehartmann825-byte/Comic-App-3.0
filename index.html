@@ -1,173 +1,256 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Meine Comic Sammlung</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comic Tracker V8 Ultimate</title>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#00ff99">
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0a0a0a;
+  color:white;
+  text-align:center;
+}
 
-  <link rel="manifest" href="manifest.json">
+h1 { color:#00ff99; margin-top:10px; }
 
-  <style>
-    body {
-      font-family: Arial;
-      background: #111;
-      color: white;
-      text-align: center;
-      margin: 0;
-      padding: 10px;
-    }
+input {
+  padding:10px;
+  width:70%;
+  border-radius:8px;
+  border:none;
+}
 
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 8px;
-      border: none;
-    }
+button {
+  padding:8px;
+  margin:3px;
+  border-radius:8px;
+  border:none;
+  background:#00ff99;
+  cursor:pointer;
+}
 
-    button {
-      background: #00ff99;
-      cursor: pointer;
-    }
+.stats {
+  margin:10px;
+  font-size:14px;
+  opacity:0.9;
+}
 
-    table {
-      width: 95%;
-      margin: 20px auto;
-      border-collapse: collapse;
-    }
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:10px;
+  padding:10px;
+}
 
-    td, th {
-      border: 1px solid #333;
-      padding: 10px;
-    }
+.card {
+  background:#1a1a1a;
+  border-radius:10px;
+  padding:8px;
+  position:relative;
+}
 
-    img {
-      width: 50px;
-    }
+.card img {
+  width:100%;
+  border-radius:6px;
+}
 
-    .card {
-      background: #1a1a1a;
-      margin: 10px;
-      padding: 10px;
-      border-radius: 10px;
-    }
-  </style>
+.small {
+  font-size:12px;
+  opacity:0.8;
+}
+
+.star {
+  position:absolute;
+  top:5px;
+  right:8px;
+  color:gold;
+  font-size:18px;
+  cursor:pointer;
+}
+
+.filters {
+  margin:10px 0;
+}
+
+.filter-btn {
+  background:#222;
+  color:white;
+}
+
+.active {
+  background:#00ff99;
+  color:black;
+}
+
+</style>
 </head>
 
 <body>
 
-<h1>📚 Meine Comic Sammlung</h1>
+<h1>📚 Comic Tracker V8 Ultimate</h1>
 
-<input id="search" placeholder="Comic suchen...">
+<input id="search" placeholder="Batman, Joker, Marvel..." oninput="suggest()">
 <button onclick="searchComic()">Suchen</button>
 
-<h2>Ergebnisse</h2>
-<div id="results"></div>
+<div class="filters">
+<button class="filter-btn active" onclick="setFilter('all')">Alle</button>
+<button class="filter-btn" onclick="setFilter('batman')">Batman</button>
+<button class="filter-btn" onclick="setFilter('joker')">Joker</button>
+<button class="filter-btn" onclick="setFilter('marvel')">Marvel</button>
+<button class="filter-btn" onclick="setFilter('dc')">DC</button>
+</div>
 
-<h2>Meine Sammlung</h2>
+<div class="stats">
+📚 <span id="count">0</span> |
+📖 <span id="pages">0</span> Seiten |
+💰 <span id="price">0</span> € |
+⭐ <span id="fav">0</span> Favoriten
+</div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Cover</th>
-      <th>Titel</th>
-      <th>Seiten</th>
-      <th>Preis</th>
-      <th>❌</th>
-    </tr>
-  </thead>
-  <tbody id="collection"></tbody>
-</table>
+<h2>🔎 Ergebnisse</h2>
+<div id="results" class="grid"></div>
 
-<h3>💰 Gesamt: <span id="totalPrice">0</span> €</h3>
-<h3>📖 Seiten: <span id="totalPages">0</span></h3>
+<h2>⭐ Sammlung</h2>
+<div id="collection" class="grid"></div>
 
 <script>
-let collection = JSON.parse(localStorage.getItem("comics")) || [];
 
-function save() {
+let collection = JSON.parse(localStorage.getItem("comics")) || [];
+let filter = "all";
+
+/* SAVE */
+function save(){
   localStorage.setItem("comics", JSON.stringify(collection));
 }
 
-function render() {
-  let table = document.getElementById("collection");
-  table.innerHTML = "";
-
-  let totalPrice = 0;
-  let totalPages = 0;
-
-  collection.forEach((c, i) => {
-    table.innerHTML += `
-      <tr>
-        <td><img src="${c.cover || 'https://via.placeholder.com/50'}"></td>
-        <td>${c.title}</td>
-        <td>${c.pages}</td>
-        <td>${c.price} €</td>
-        <td><button onclick="removeComic(${i})">❌</button></td>
-      </tr>
-    `;
-
-    totalPrice += Number(c.price);
-    totalPages += Number(c.pages);
-  });
-
-  document.getElementById("totalPrice").innerText = totalPrice;
-  document.getElementById("totalPages").innerText = totalPages;
+/* FILTER */
+function setFilter(f){
+  filter = f;
+  render();
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  event.target.classList.add("active");
 }
 
-function removeComic(i) {
-  collection.splice(i, 1);
+/* STATS + RENDER */
+function render(){
+
+  let box = document.getElementById("collection");
+  box.innerHTML = "";
+
+  let pages = 0;
+  let price = 0;
+  let favCount = 0;
+
+  let filtered = collection.filter(c=>{
+    if(filter === "all") return true;
+    return c.title.toLowerCase().includes(filter);
+  });
+
+  filtered.forEach((c,i)=>{
+
+    pages += Number(c.pages);
+    price += Number(c.price);
+    if(c.fav) favCount++;
+
+    box.innerHTML += `
+      <div class="card">
+        <span class="star" onclick="toggleFav(${i})">
+          ${c.fav ? "★" : "☆"}
+        </span>
+
+        <img src="${c.cover}">
+        <p><b>${c.title}</b></p>
+        <p class="small">${c.pages} Seiten</p>
+
+        <button onclick="removeComic(${i})">❌</button>
+      </div>
+    `;
+  });
+
+  document.getElementById("count").innerText = filtered.length;
+  document.getElementById("pages").innerText = pages;
+  document.getElementById("price").innerText = price;
+  document.getElementById("fav").innerText = favCount;
+}
+
+/* REMOVE */
+function removeComic(i){
+  collection.splice(i,1);
   save();
   render();
 }
 
-async function searchComic() {
-  let query = document.getElementById("search").value;
-  if (!query) return;
+/* FAVORITE */
+function toggleFav(i){
+  collection[i].fav = !collection[i].fav;
+  save();
+  render();
+}
 
-  let res = await fetch(`https://openlibrary.org/search.json?q=${query}`);
+/* SEARCH */
+async function searchComic(){
+
+  let q = document.getElementById("search").value.trim();
+  if(!q) return;
+
+  let res = await fetch(`https://openlibrary.org/search.json?q=comic+${q}`);
   let data = await res.json();
 
   let results = document.getElementById("results");
   results.innerHTML = "";
 
-  data.docs.slice(0, 5).forEach(book => {
-    let title = book.title;
-    let pages = book.number_of_pages_median || 0;
-    let cover = book.cover_i
-      ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-      : "https://via.placeholder.com/80";
+  data.docs
+    .filter(b=>b.title && b.number_of_pages_median)
+    .slice(0,10)
+    .forEach(book=>{
 
-    let div = document.createElement("div");
-    div.className = "card";
+      let title = book.title;
+      let pages = book.number_of_pages_median;
 
-    div.innerHTML = `
-      <p>${title} (${pages} Seiten)</p>
-      <button onclick='addComic(${JSON.stringify(title)}, ${pages}, "${cover}")'>
-        ➕ Hinzufügen
-      </button>
-    `;
+      let cover = book.cover_i
+        ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+        : "https://via.placeholder.com/150";
 
-    results.appendChild(div);
-  });
+      let div = document.createElement("div");
+      div.className = "card";
+
+      div.innerHTML = `
+        <img src="${cover}">
+        <p><b>${title}</b></p>
+        <p class="small">${pages} Seiten</p>
+
+        <button onclick='addComic(${JSON.stringify(title)},${pages},"${cover}")'>
+          ➕ Add
+        </button>
+      `;
+
+      results.appendChild(div);
+    });
 }
 
-function addComic(title, pages, cover) {
-  let price = prompt("Preis (€):");
-  if (!price) return;
+/* ADD */
+function addComic(title,pages,cover){
 
-  collection.push({ title, pages, price, cover });
+  let price = prompt("Preis (€):");
+  if(!price) return;
+
+  collection.push({
+    title,
+    pages,
+    price,
+    cover,
+    fav:false
+  });
+
   save();
   render();
 }
 
 render();
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
-}
 </script>
 
 </body>
