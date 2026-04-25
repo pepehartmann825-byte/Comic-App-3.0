@@ -3,79 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Comic Tracker Pro</title>
+<title>Comic Tracker Final</title>
 
 <style>
-body {
+body{
   margin:0;
-  font-family: Arial;
+  font-family:Arial;
   background:#0a0a0a;
   color:white;
   text-align:center;
 }
 
-h1 { color:#00ff99; margin:10px 0; }
+h1{color:#00ff99;margin:10px;}
 
-input {
+input{
   padding:10px;
   width:70%;
   border-radius:8px;
   border:none;
 }
 
-button {
+.stats{
+  margin:10px;
+  font-size:14px;
+}
+
+.filters{
+  margin:10px 0;
+}
+
+button{
   padding:8px;
-  margin:4px;
+  margin:3px;
   border-radius:8px;
   border:none;
   background:#00ff99;
   cursor:pointer;
 }
 
-.stats {
-  margin:10px;
-  font-size:14px;
-}
-
-.filters {
-  margin:10px 0;
-}
-
-.filter-btn {
+.filter-btn{
   background:#222;
   color:white;
 }
 
-.active {
+.active{
   background:#00ff99;
   color:black;
 }
 
-.grid {
+.grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
   gap:10px;
   padding:10px;
 }
 
-.card {
+.card{
   background:#1a1a1a;
   padding:8px;
   border-radius:10px;
   position:relative;
 }
 
-.card img {
+.card img{
   width:100%;
   border-radius:6px;
 }
 
-.small {
+.small{
   font-size:12px;
   opacity:0.8;
 }
 
-.star {
+.star{
   position:absolute;
   top:5px;
   right:8px;
@@ -88,10 +88,9 @@ button {
 
 <body>
 
-<h1>📚 Comic Tracker Pro</h1>
+<h1>📚 Comic Tracker Final</h1>
 
-<input id="search" placeholder="Batman, Joker, Marvel...">
-<button onclick="searchComic()">Suchen</button>
+<input id="search" placeholder="Batman, Joker, Marvel..." oninput="debouncedSearch()">
 
 <div class="filters">
 <button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
@@ -102,7 +101,7 @@ button {
 </div>
 
 <div class="stats">
-📚 <span id="count">0</span> Comics |
+📚 <span id="count">0</span> |
 📖 <span id="pages">0</span> Seiten |
 💰 <span id="price">0</span> € |
 ⭐ <span id="fav">0</span>
@@ -118,10 +117,17 @@ button {
 
 let collection = JSON.parse(localStorage.getItem("comics")) || [];
 let filter = "all";
+let timeout;
 
 /* SAVE */
 function save(){
   localStorage.setItem("comics", JSON.stringify(collection));
+}
+
+/* DEBOUNCE (Instant Search) */
+function debouncedSearch(){
+  clearTimeout(timeout);
+  timeout = setTimeout(searchComic, 350);
 }
 
 /* FILTER */
@@ -191,25 +197,27 @@ function toggleFav(i){
   render();
 }
 
-/* SEARCH */
+/* INSTANT SEARCH */
 async function searchComic(){
 
-  let query = document.getElementById("search").value.trim();
-  if(!query) return;
+  let q = document.getElementById("search").value.trim();
+  if(!q) return;
 
-  let res = await fetch(`https://openlibrary.org/search.json?q=comic+${query}`);
+  let res = await fetch(`https://openlibrary.org/search.json?q=comic+${q}`);
   let data = await res.json();
 
   let results = document.getElementById("results");
+  results.innerHTML = "🔎 Suche...";
+
   results.innerHTML = "";
 
   data.docs
-    .filter(b => b.title && b.number_of_pages_median)
+    .filter(b => b.title)
     .slice(0,10)
     .forEach(book=>{
 
       let title = book.title;
-      let pages = book.number_of_pages_median;
+      let pages = book.number_of_pages_median || "n/a";
 
       let cover = book.cover_i
         ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
