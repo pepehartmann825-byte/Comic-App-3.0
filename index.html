@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Comic Tracker Final</title>
+<title>Comic Database Pro</title>
 
 <style>
 body{
@@ -18,37 +18,31 @@ h1{color:#00ff99;margin:10px;}
 
 input{
   padding:10px;
+  margin:5px;
   width:70%;
   border-radius:8px;
   border:none;
 }
 
-.stats{
-  margin:10px;
-  font-size:14px;
-}
-
-.filters{
-  margin:10px 0;
-}
-
 button{
   padding:8px;
-  margin:3px;
+  margin:4px;
   border-radius:8px;
   border:none;
   background:#00ff99;
   cursor:pointer;
 }
 
-.filter-btn{
-  background:#222;
-  color:white;
+.form{
+  background:#111;
+  padding:10px;
+  margin:10px;
+  border-radius:10px;
 }
 
-.active{
-  background:#00ff99;
-  color:black;
+.stats{
+  margin:10px;
+  font-size:14px;
 }
 
 .grid{
@@ -60,8 +54,8 @@ button{
 
 .card{
   background:#1a1a1a;
-  padding:8px;
   border-radius:10px;
+  padding:8px;
   position:relative;
 }
 
@@ -88,79 +82,120 @@ button{
 
 <body>
 
-<h1>📚 Comic Tracker Final</h1>
+<h1>📚 Comic Database Pro</h1>
 
-<input id="search" placeholder="Batman, Joker, Marvel..." oninput="debouncedSearch()">
+<!-- 🔥 ADD FORM -->
+<div class="form">
 
-<div class="filters">
-<button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
-<button class="filter-btn" onclick="setFilter('batman', this)">Batman</button>
-<button class="filter-btn" onclick="setFilter('joker', this)">Joker</button>
-<button class="filter-btn" onclick="setFilter('marvel', this)">Marvel</button>
-<button class="filter-btn" onclick="setFilter('dc', this)">DC</button>
+<h3>➕ Comic hinzufügen</h3>
+
+<input id="title" placeholder="Titel">
+<input id="pages" placeholder="Seiten">
+<input id="series" placeholder="Serie (Batman, Joker...)">
+<input id="publisher" placeholder="Publisher (DC, Marvel)">
+<input id="cover" placeholder="Cover URL (optional)">
+
+<button onclick="addComic()">Hinzufügen</button>
+
 </div>
+
+<!-- 🔎 SEARCH -->
+<input id="search" oninput="render()" placeholder="Suchen...">
 
 <div class="stats">
 📚 <span id="count">0</span> |
-📖 <span id="pages">0</span> Seiten |
-💰 <span id="price">0</span> € |
-⭐ <span id="fav">0</span>
+📖 <span id="pagesTotal">0</span> Seiten |
+💰 <span id="priceTotal">0</span> € |
+⭐ <span id="favTotal">0</span>
 </div>
 
-<h2>🔎 Ergebnisse</h2>
-<div id="results" class="grid"></div>
-
-<h2>⭐ Sammlung</h2>
-<div id="collection" class="grid"></div>
+<h2>📚 Meine Datenbank</h2>
+<div id="db" class="grid"></div>
 
 <script>
 
-let collection = JSON.parse(localStorage.getItem("comics")) || [];
-let filter = "all";
-let timeout;
+/* 🧠 EIGENE DATENBANK */
+let comicsDB = JSON.parse(localStorage.getItem("db")) || [];
 
-/* SAVE */
+/* 💾 SAVE */
 function save(){
-  localStorage.setItem("comics", JSON.stringify(collection));
+  localStorage.setItem("db", JSON.stringify(comicsDB));
 }
 
-/* DEBOUNCE (Instant Search) */
-function debouncedSearch(){
-  clearTimeout(timeout);
-  timeout = setTimeout(searchComic, 350);
-}
+/* ➕ ADD COMIC */
+function addComic(){
 
-/* FILTER */
-function setFilter(f, btn){
-  filter = f;
+  let title = document.getElementById("title").value;
+  let pages = document.getElementById("pages").value;
+  let series = document.getElementById("series").value;
+  let publisher = document.getElementById("publisher").value;
+  let cover = document.getElementById("cover").value;
+
+  if(!title || !pages) return;
+
+  if(!cover){
+    cover = "https://via.placeholder.com/150";
+  }
+
+  comicsDB.push({
+    title,
+    pages,
+    series,
+    publisher,
+    cover,
+    fav:false
+  });
+
+  save();
+  clearForm();
   render();
-
-  document.querySelectorAll(".filter-btn")
-    .forEach(b => b.classList.remove("active"));
-
-  btn.classList.add("active");
 }
 
-/* RENDER */
+/* 🧹 FORM RESET */
+function clearForm(){
+  document.getElementById("title").value="";
+  document.getElementById("pages").value="";
+  document.getElementById("series").value="";
+  document.getElementById("publisher").value="";
+  document.getElementById("cover").value="";
+}
+
+/* ⭐ FAVORIT */
+function toggleFav(i){
+  comicsDB[i].fav = !comicsDB[i].fav;
+  save();
+  render();
+}
+
+/* ❌ DELETE */
+function deleteComic(i){
+  comicsDB.splice(i,1);
+  save();
+  render();
+}
+
+/* 🔎 RENDER + SEARCH */
 function render(){
 
-  let box = document.getElementById("collection");
+  let q = document.getElementById("search").value.toLowerCase();
+
+  let box = document.getElementById("db");
   box.innerHTML = "";
 
-  let pages = 0;
-  let price = 0;
-  let fav = 0;
+  let pagesTotal = 0;
+  let priceTotal = 0;
+  let favTotal = 0;
 
-  let filtered = collection.filter(c=>{
-    if(filter === "all") return true;
-    return c.title.toLowerCase().includes(filter);
-  });
+  let filtered = comicsDB.filter(c =>
+    c.title.toLowerCase().includes(q) ||
+    (c.series || "").toLowerCase().includes(q) ||
+    (c.publisher || "").toLowerCase().includes(q)
+  );
 
   filtered.forEach((c,i)=>{
 
-    pages += Number(c.pages);
-    price += Number(c.price);
-    if(c.fav) fav++;
+    pagesTotal += Number(c.pages);
+    if(c.fav) favTotal++;
 
     box.innerHTML += `
       <div class="card">
@@ -171,93 +206,19 @@ function render(){
         <img src="${c.cover}">
         <p><b>${c.title}</b></p>
         <p class="small">${c.pages} Seiten</p>
+        <p class="small">${c.series || ""} | ${c.publisher || ""}</p>
 
-        <button onclick="removeComic(${i})">❌</button>
+        <button onclick="deleteComic(${i})">❌</button>
       </div>
     `;
   });
 
   document.getElementById("count").innerText = filtered.length;
-  document.getElementById("pages").innerText = pages;
-  document.getElementById("price").innerText = price;
-  document.getElementById("fav").innerText = fav;
+  document.getElementById("pagesTotal").innerText = pagesTotal;
+  document.getElementById("favTotal").innerText = favTotal;
 }
 
-/* REMOVE */
-function removeComic(i){
-  collection.splice(i,1);
-  save();
-  render();
-}
-
-/* FAVORITE */
-function toggleFav(i){
-  collection[i].fav = !collection[i].fav;
-  save();
-  render();
-}
-
-/* INSTANT SEARCH */
-async function searchComic(){
-
-  let q = document.getElementById("search").value.trim();
-  if(!q) return;
-
-  let res = await fetch(`https://openlibrary.org/search.json?q=comic+${q}`);
-  let data = await res.json();
-
-  let results = document.getElementById("results");
-  results.innerHTML = "🔎 Suche...";
-
-  results.innerHTML = "";
-
-  data.docs
-    .filter(b => b.title)
-    .slice(0,10)
-    .forEach(book=>{
-
-      let title = book.title;
-      let pages = book.number_of_pages_median || "n/a";
-
-      let cover = book.cover_i
-        ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-        : "https://via.placeholder.com/150";
-
-      let div = document.createElement("div");
-      div.className = "card";
-
-      div.innerHTML = `
-        <img src="${cover}">
-        <p><b>${title}</b></p>
-        <p class="small">${pages} Seiten</p>
-
-        <button onclick='addComic(${JSON.stringify(title)},${pages},"${cover}")'>
-          ➕ Add
-        </button>
-      `;
-
-      results.appendChild(div);
-    });
-}
-
-/* ADD */
-function addComic(title,pages,cover){
-
-  let price = prompt("Preis (€):");
-  if(!price) return;
-
-  collection.push({
-    title,
-    pages,
-    price,
-    cover,
-    fav:false
-  });
-
-  save();
-  render();
-}
-
+/* 🚀 START */
 render();
 
 </script>
